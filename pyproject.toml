@@ -1,0 +1,73 @@
+[project]
+name = "hambametal"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    #Torch
+    "torch>=2.8",
+    "torchvision",
+    "torchaudio",
+
+    #ML Libs
+    "diffusers==0.35.0",
+    "transformers",
+    "accelerate",
+    "peft==0.17.0",
+
+    #Core Utils
+    "numpy",
+    "pillow",
+    "huggingface_hub",
+    "safetensors",
+
+    # Config
+    "fire",
+    "omegaconf",
+
+    #Web
+    "fastapi",
+    "uvicorn[standard]",
+    "websockets",
+    "pydantic-settings",
+
+    #stream diffusion
+    "streamdiffusion"
+
+]
+
+[project.optional-dependencies]
+# cuda = [
+#     # Modern, pip-installable TensorRT from NVIDIA's index
+#     "tensorrt-cu12",
+#     "tensorrt-cu12-libs",
+#     "tensorrt-cu12-bindings",
+#     "polygraphy",
+#     "xformers",
+#     "cuda-python==12.8",
+#     "onnx-graphsurgeon",
+#     "onnx",
+#     "onnxruntime",
+# ]
+
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+    "mypy",
+    "ipykernel",
+    "jupyter",
+    "notebook",
+    "pytest",
+    "colored",
+
+]
+
+[tool.uv.sources]
+streamdiffusion = {path = "StreamDiffusion", editable = true}
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.1a21",
+]
