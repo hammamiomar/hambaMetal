@@ -19,6 +19,7 @@ dependencies = [
     #Core Utils
     "numpy",
     "pillow",
+    "opencv-python",
     "huggingface_hub",
     "safetensors",
 
@@ -27,7 +28,7 @@ dependencies = [
     "omegaconf",
 
     #Web
-    "fastapi",
+    "fastapi[standard]",
     "uvicorn[standard]",
     "websockets",
     "pydantic-settings",
