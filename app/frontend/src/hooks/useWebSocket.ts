@@ -1,10 +1,7 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { ConnectionStatus } from '../types';
-import { WS_CONFIG, PERF_CONFIG } from '../constants';
+import { useEffect, useRef, useCallback, useState } from "react";
+import { ConnectionStatus } from "../types";
+import { WS_CONFIG, PERF_CONFIG } from "../constants";
 
-/**
- * Configuration options for the WebSocket hook
- */
 interface UseWebSocketOptions {
   /** WebSocket URL to connect to */
   url: string;
@@ -43,23 +40,6 @@ interface UseWebSocketReturn {
   reconnectAttempts: number;
 }
 
-/**
- * Custom hook for managing WebSocket connections with frame streaming
- *
- * ARCHITECTURE NOTES:
- * - Uses the "latest ref" pattern to avoid reconnection issues
- * - The onFrame callback is stored in a ref and updated on every render
- * - This prevents the connect() function from being recreated when onFrame changes
- * - Without this pattern, every parent re-render would disconnect/reconnect the WebSocket
- *
- * LEARNING REACT:
- * This is a critical pattern when building hooks that manage subscriptions.
- * Always ask: "Does this dependency ACTUALLY need to trigger cleanup/re-run?"
- * If the answer is "no, I just need the latest value", use a ref.
- *
- * @param options - Configuration options
- * @returns WebSocket connection controls and metrics
- */
 export function useWebSocket({
   url,
   onFrame,
@@ -70,7 +50,9 @@ export function useWebSocket({
   const ws = useRef<WebSocket | null>(null);
 
   // Connection state
-  const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
+  const [status, setStatus] = useState<ConnectionStatus>(
+    ConnectionStatus.DISCONNECTED,
+  );
 
   // FPS tracking
   const [fps, setFps] = useState(0);
@@ -81,13 +63,10 @@ export function useWebSocket({
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const reconnectTimeoutRef = useRef<number | null>(null);
 
-  /**
-   * THE CRITICAL PATTERN: Store the latest onFrame callback in a ref
-   * This ref is updated on every render, but doesn't trigger effects
-   */
+  // Defensive onFrame callback assignment. This is because we want to avoid
+  // calling Connect() again, if we change the onFrame callback--therefore
+  // removing onFrame from our dependency array
   const onFrameRef = useRef(onFrame);
-
-  // Update the ref whenever onFrame changes (no effect re-run!)
   useEffect(() => {
     onFrameRef.current = onFrame;
   });
@@ -98,8 +77,11 @@ export function useWebSocket({
    */
   const connect = useCallback(() => {
     // Prevent duplicate connections
-    if (ws.current?.readyState === WebSocket.OPEN || ws.current?.readyState === WebSocket.CONNECTING) {
-      console.log('[useWebSocket] Already connected or connecting');
+    if (
+      ws.current?.readyState === WebSocket.OPEN ||
+      ws.current?.readyState === WebSocket.CONNECTING
+    ) {
+      console.log("[useWebSocket] Already connected or connecting");
       return;
     }
 
@@ -107,14 +89,15 @@ export function useWebSocket({
     setStatus(ConnectionStatus.CONNECTING);
 
     ws.current = new WebSocket(url);
-    ws.current.binaryType = 'arraybuffer';
+    ws.current.binaryType = "arraybuffer";
 
     ws.current.onopen = () => {
-      console.log('[useWebSocket] Connected');
+      console.log("[useWebSocket] Connected");
       setStatus(ConnectionStatus.CONNECTED);
       setReconnectAttempts(0);
     };
-
+    // WS Message Handler Start
+    // ws entry point, and the message handler.
     ws.current.onmessage = (event: MessageEvent) => {
       // Handle binary frame data
       if (event.data instanceof ArrayBuffer) {
@@ -133,33 +116,41 @@ export function useWebSocket({
         }
       }
       // Handle JSON metadata (for future use)
-      else if (typeof event.data === 'string') {
+      else if (typeof event.data === "string") {
         try {
           const metadata = JSON.parse(event.data);
-          console.log('[useWebSocket] Received metadata:', metadata);
+          console.log("[useWebSocket] Received metadata:", metadata);
           // TODO: Handle backend metrics here
         } catch (e) {
-          console.warn('[useWebSocket] Failed to parse JSON message:', e);
+          console.warn("[useWebSocket] Failed to parse JSON message:", e);
         }
       }
     };
 
     ws.current.onerror = (error) => {
-      console.error('[useWebSocket] Error:', error);
+      console.error("[useWebSocket] Error:", error);
       setStatus(ConnectionStatus.ERROR);
     };
 
     ws.current.onclose = (event) => {
-      console.log(`[useWebSocket] Disconnected (code: ${event.code}, reason: ${event.reason})`);
+      console.log(
+        `[useWebSocket] Disconnected (code: ${event.code}, reason: ${event.reason})`,
+      );
       ws.current = null;
       setStatus(ConnectionStatus.DISCONNECTED);
       setFps(0);
 
       // Attempt reconnection if enabled and not a normal closure
-      if (enableReconnect && event.code !== 1000 && reconnectAttempts < WS_CONFIG.MAX_RECONNECT_ATTEMPTS) {
+      if (
+        enableReconnect &&
+        event.code !== 1000 &&
+        reconnectAttempts < WS_CONFIG.MAX_RECONNECT_ATTEMPTS
+      ) {
         const attempt = reconnectAttempts + 1;
         setReconnectAttempts(attempt);
-        console.log(`[useWebSocket] Reconnecting in ${WS_CONFIG.RECONNECT_DELAY}ms (attempt ${attempt}/${WS_CONFIG.MAX_RECONNECT_ATTEMPTS})`);
+        console.log(
+          `[useWebSocket] Reconnecting in ${WS_CONFIG.RECONNECT_DELAY}ms (attempt ${attempt}/${WS_CONFIG.MAX_RECONNECT_ATTEMPTS})`,
+        );
 
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connect();
@@ -179,8 +170,8 @@ export function useWebSocket({
     }
 
     if (ws.current) {
-      console.log('[useWebSocket] Disconnecting');
-      ws.current.close(1000, 'Client requested disconnect');
+      console.log("[useWebSocket] Disconnecting");
+      ws.current.close(1000, "Client requested disconnect");
       ws.current = null;
       setStatus(ConnectionStatus.DISCONNECTED);
       setFps(0);

@@ -1,7 +1,13 @@
-import { Fragment } from 'react';
-import { Menu, Transition } from '@headlessui/react';
-import { ConnectionStatus } from '../types';
-import type { Metrics } from '../types';
+import { Fragment } from "react";
+import {
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
+  Transition,
+} from "@headlessui/react";
+import { ConnectionStatus } from "../types";
+import type { Metrics } from "../types";
 
 /**
  * Props for the Controls component
@@ -60,13 +66,13 @@ export function Controls({
   const getStatusColor = () => {
     switch (status) {
       case ConnectionStatus.CONNECTED:
-        return 'bg-green-500';
+        return "bg-green-500";
       case ConnectionStatus.CONNECTING:
-        return 'bg-yellow-500';
+        return "bg-yellow-500";
       case ConnectionStatus.ERROR:
-        return 'bg-red-500';
+        return "bg-red-500";
       default:
-        return 'bg-gray-500';
+        return "bg-gray-500";
     }
   };
 
@@ -76,13 +82,13 @@ export function Controls({
   const getStatusText = () => {
     switch (status) {
       case ConnectionStatus.CONNECTED:
-        return 'Connected';
+        return "Connected";
       case ConnectionStatus.CONNECTING:
-        return 'Connecting...';
+        return "Connecting...";
       case ConnectionStatus.ERROR:
-        return 'Error';
+        return "Error";
       default:
-        return 'Disconnected';
+        return "Disconnected";
     }
   };
 
@@ -90,12 +96,13 @@ export function Controls({
     <div className="absolute top-6 left-6 w-80 select-none">
       {/* Main panel with glass-morphism effect */}
       <div className="bg-black/80 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-2xl">
-
         {/* Header: Status indicator */}
         <div className="flex items-center gap-3 mb-6">
           <div className="relative">
             {/* Status dot */}
-            <div className={`w-3 h-3 rounded-full ${getStatusColor()} ${isConnected ? 'animate-pulse' : ''}`} />
+            <div
+              className={`w-3 h-3 rounded-full ${getStatusColor()} ${isConnected ? "animate-pulse" : ""}`}
+            />
 
             {/* Pulse ring for connected state */}
             {isConnected && (
@@ -124,7 +131,7 @@ export function Controls({
                      text-white rounded-lg font-medium transition-all duration-150
                      focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-black/80"
           >
-            {isConnecting ? 'Connecting...' : 'Connect'}
+            {isConnecting ? "Connecting..." : "Connect"}
           </button>
 
           <button
@@ -178,11 +185,13 @@ export function Controls({
         <div className="pt-6 border-t border-white/10 mt-6">
           <Menu as="div" className="relative">
             {/* Menu button */}
-            <Menu.Button className="w-full px-4 py-2.5 bg-gray-800 hover:bg-gray-700 active:bg-gray-600
+            <MenuButton
+              className="w-full px-4 py-2.5 bg-gray-800 hover:bg-gray-700 active:bg-gray-600
                                    text-white rounded-lg font-medium transition-all duration-150
-                                   focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-black/80">
+                                   focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-black/80"
+            >
               Settings
-            </Menu.Button>
+            </MenuButton>
 
             {/* Menu items with transition */}
             <Transition
@@ -194,38 +203,40 @@ export function Controls({
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <Menu.Items className="absolute left-0 bottom-full mb-2 w-full origin-bottom-left
+              <MenuItems
+                className="absolute left-0 bottom-full mb-2 w-full origin-bottom-left
                                      bg-gray-900/95 backdrop-blur-lg rounded-lg shadow-xl
                                      ring-1 ring-black ring-opacity-5
-                                     focus:outline-none overflow-hidden">
+                                     focus:outline-none overflow-hidden"
+              >
                 <div className="p-1">
-                  <Menu.Item>
+                  <MenuItem>
                     {({ focus }) => (
                       <button
                         className={`${
-                          focus ? 'bg-gray-800' : ''
+                          focus ? "bg-gray-800" : ""
                         } group flex w-full items-center rounded-md px-3 py-2.5 text-sm text-white transition-colors`}
-                        onClick={() => console.log('Quality settings clicked')}
+                        onClick={() => console.log("Quality settings clicked")}
                       >
                         Quality Settings
                       </button>
                     )}
-                  </Menu.Item>
+                  </MenuItem>
 
-                  <Menu.Item>
+                  <MenuItem>
                     {({ focus }) => (
                       <button
                         className={`${
-                          focus ? 'bg-gray-800' : ''
+                          focus ? "bg-gray-800" : ""
                         } group flex w-full items-center rounded-md px-3 py-2.5 text-sm text-white transition-colors`}
-                        onClick={() => console.log('About clicked')}
+                        onClick={() => console.log("About clicked")}
                       >
                         About
                       </button>
                     )}
-                  </Menu.Item>
+                  </MenuItem>
                 </div>
-              </Menu.Items>
+              </MenuItems>
             </Transition>
           </Menu>
         </div>
@@ -248,8 +259,11 @@ function MetricRow({ label, value, unit, highlight = false }: MetricRowProps) {
   return (
     <div className="flex justify-between items-baseline text-sm">
       <span className="text-gray-400">{label}</span>
-      <span className={`font-mono font-semibold ${highlight ? 'text-green-400' : 'text-gray-300'}`}>
-        {value}{unit && <span className="text-gray-500 ml-0.5">{unit}</span>}
+      <span
+        className={`font-mono font-semibold ${highlight ? "text-green-400" : "text-gray-300"}`}
+      >
+        {value}
+        {unit && <span className="text-gray-500 ml-0.5">{unit}</span>}
       </span>
     </div>
   );

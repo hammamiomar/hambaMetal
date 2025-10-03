@@ -342,3 +342,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+**/docs/*

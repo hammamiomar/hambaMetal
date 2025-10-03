@@ -1,92 +1,44 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { CANVAS_CONFIG } from '../constants';
+import { useEffect, useRef, useImperativeHandle } from "react";
+import type { Ref } from "react";
+import { CANVAS_CONFIG } from "../constants";
 
-/**
- * Props for the Canvas component
- */
 interface CanvasProps {
-  /** Additional CSS classes */
   className?: string;
+  ref?: Ref<CanvasHandle>; // ref from parent (App.tsx) - we'll fill it with methods
 }
 
-/**
- * Imperative handle exposed by the Canvas component
- * This allows parent components to render frames without triggering React re-renders
- */
+// the "handle" - methods we expose to parent
 export interface CanvasHandle {
-  /**
-   * Render a frame to the canvas
-   * @param data - ArrayBuffer containing JPEG image data
-   */
   renderFrame: (data: ArrayBuffer) => Promise<void>;
-
-  /**
-   * Clear the canvas to black
-   */
   clear: () => void;
 }
 
-/**
- * High-performance canvas component for rendering video frames
- *
- * ARCHITECTURE NOTES:
- * - Uses forwardRef + useImperativeHandle for imperative API
- * - Rendering happens OUTSIDE React's render cycle
- * - This is critical for performance at 30-60 FPS
- *
- * WHY THIS PATTERN?
- * - Calling setState() 60 times/second would trigger React reconciliation
- * - React would diff the virtual DOM, update fiber tree, etc.
- * - This adds ~5-10ms latency per frame
- * - Instead, we bypass React and draw directly to the canvas
- *
- * LEARNING REACT:
- * - forwardRef: Allows parent to get a reference to this component
- * - useImperativeHandle: Customizes the value exposed via that ref
- * - This is an "escape hatch" for imperative operations
- * - Use sparingly! Only when React's declarative model doesn't fit
- *
- * BROWSER OPTIMIZATIONS:
- * - createImageBitmap(): Hardware-accelerated, runs on GPU/compositor thread
- * - desynchronized: true: Reduces latency between drawImage() and screen update
- * - alpha: false: Skips alpha channel processing (performance gain)
- *
- * @param props - Component props
- * @param ref - Forwarded ref that will receive the CanvasHandle
- */
-export const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ className }, ref) => {
-  // DOM reference to the canvas element
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export const Canvas = ({ className, ref }: CanvasProps) => {
+  // two separate refs here:
+  // 1. canvasRef - points to the actual <canvas> DOM element (filled by React automatically)
+  // 2. ref (prop) - the handle we give to parent so they can call our methods
 
-  // 2D rendering context (stored to avoid repeated getContext calls)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  /**
-   * Initialize canvas context and handle window resize
-   */
+  //Initialize canvas context and handle window resize
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Get rendering context with performance optimizations
-    ctxRef.current = canvas.getContext('2d', {
-      alpha: false,        // No transparency = faster compositing
-      desynchronized: true, // Lower latency, allow tearing (imperceptible at high FPS)
+    // get the 2d context with perf optimizations
+    ctxRef.current = canvas.getContext("2d", {
+      alpha: false, // skip transparency processing
+      desynchronized: true, // lower latency, allows slight tearing (invisible at 30fps)
     });
 
-    /**
-     * Resize canvas to match display size
-     * Important: Canvas has TWO sizes:
-     * 1. Display size (CSS width/height) - how big it looks
-     * 2. Drawing buffer size (canvas.width/height) - resolution
-     * They should match for crisp rendering
-     */
     const handleResize = () => {
       if (!canvas) return;
 
       const { clientWidth, clientHeight } = canvas;
 
-      // Only resize if dimensions changed (avoid unnecessary clears)
+      // canvas has two sizes: CSS size (how big it looks) and buffer size (actual resolution)
+      // we sync them so the image is crisp
       if (canvas.width !== clientWidth || canvas.height !== clientHeight) {
         canvas.width = clientWidth;
         canvas.height = clientHeight;
@@ -100,38 +52,32 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ className }, ref)
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
-  /**
-   * Expose imperative methods to parent via ref
-   */
+  // this fills the ref prop with our methods
+  // so parent can do: canvasRef.current.renderFrame(data)
   useImperativeHandle(ref, () => ({
-    /**
-     * Render a frame from ArrayBuffer (JPEG data)
-     */
     renderFrame: async (data: ArrayBuffer) => {
       const ctx = ctxRef.current;
       const canvas = canvasRef.current;
       if (!ctx || !canvas) return;
 
       try {
-        // Convert ArrayBuffer to Blob
-        const blob = new Blob([data], { type: 'image/jpeg' });
+        const blob = new Blob([data], { type: "image/jpeg" });
 
-        // Decode to ImageBitmap (fastest method, uses hardware acceleration)
-        // This happens off the main thread in modern browsers
+        // decode jpeg using hardware acceleration (GPU) - happens off main thread
         const img = await createImageBitmap(blob);
 
         // Calculate scaling to fill canvas while maintaining aspect ratio
         // (cover behavior, like CSS background-size: cover)
         const scale = Math.max(
           canvas.width / img.width,
-          canvas.height / img.height
+          canvas.height / img.height,
         );
 
         const scaledWidth = img.width * scale;
@@ -141,15 +87,13 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ className }, ref)
         const x = (canvas.width - scaledWidth) / 2;
         const y = (canvas.height - scaledHeight) / 2;
 
-        // Clear and draw in one pass (no flicker)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
 
-        // Cleanup: ImageBitmap must be manually closed
-        // (not garbage collected automatically)
+        // CRITICAL: manually close or we leak memory (30 bitmaps/sec = crash in 30 seconds)
         img.close();
       } catch (error) {
-        console.error('[Canvas] Error rendering frame:', error);
+        console.error("[Canvas] Error rendering frame:", error);
       }
     },
 
@@ -166,18 +110,16 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ className }, ref)
     },
   }));
 
+  // React automatically sets canvasRef.current to this <canvas> DOM element after render
   return (
     <canvas
       ref={canvasRef}
       className={className}
       style={{
-        display: 'block',
-        width: '100%',
-        height: '100%',
+        display: "block",
+        width: "100%",
+        height: "100%",
       }}
     />
   );
-});
-
-// Display name for React DevTools
-Canvas.displayName = 'Canvas';
+};
