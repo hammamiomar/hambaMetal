@@ -1,55 +1,16 @@
-import { Fragment } from "react";
-import {
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuItems,
-  Transition,
-} from "@headlessui/react";
+import { useState } from "react";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { ConnectionStatus } from "../types";
 import type { Metrics } from "../types";
 
-/**
- * Props for the Controls component
- */
 interface ControlsProps {
-  /** Current connection status */
   status: ConnectionStatus;
-
-  /** Performance metrics to display */
   metrics: Metrics;
-
-  /** Callback to initiate connection */
   onConnect: () => void;
-
-  /** Callback to disconnect */
   onDisconnect: () => void;
-
-  /** Number of reconnection attempts (for debugging) */
   reconnectAttempts?: number;
 }
 
-/**
- * Control panel component with connection controls and metrics display
- *
- * DESIGN NOTES:
- * - Glass-morphism aesthetic (blur, transparency, subtle borders)
- * - Fixed position overlay (doesn't interfere with canvas)
- * - Headless UI for accessible, unstyled components
- *
- * LEARNING REACT:
- * - This is a "presentational" component (UI only, no logic)
- * - All state and handlers are passed as props
- * - Makes it easy to test and reuse
- * - Parent controls the behavior, this just renders
- *
- * HEADLESS UI:
- * - Provides behavior (keyboard nav, focus management, ARIA)
- * - You provide styling (complete design freedom)
- * - Menu component: accessible dropdown with transitions
- *
- * @param props - Component props
- */
 export function Controls({
   status,
   metrics,
@@ -60,13 +21,32 @@ export function Controls({
   const isConnected = status === ConnectionStatus.CONNECTED;
   const isConnecting = status === ConnectionStatus.CONNECTING;
 
-  /**
-   * Get status indicator color based on connection state
-   */
+  // Draggable state
+  const [position, setPosition] = useState({ x: 24, y: 24 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    setPosition((prev) => ({
+      x: prev.x + e.movementX,
+      y: prev.y + e.movementY,
+    }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
   const getStatusColor = () => {
     switch (status) {
       case ConnectionStatus.CONNECTED:
-        return "bg-green-500";
+        return "bg-[#B5CC9A]"; // bright sage green
       case ConnectionStatus.CONNECTING:
         return "bg-yellow-500";
       case ConnectionStatus.ERROR:
@@ -76,9 +56,6 @@ export function Controls({
     }
   };
 
-  /**
-   * Get human-readable status text
-   */
   const getStatusText = () => {
     switch (status) {
       case ConnectionStatus.CONNECTED:
@@ -93,20 +70,27 @@ export function Controls({
   };
 
   return (
-    <div className="absolute top-6 left-6 w-80 select-none">
-      {/* Main panel with glass-morphism effect */}
-      <div className="bg-black/80 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-2xl">
-        {/* Header: Status indicator */}
-        <div className="flex items-center gap-3 mb-6">
+    <div
+      className="fixed left-0 top-0 z-10 w-80 select-none font-mono"
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        cursor: isDragging ? "grabbing" : "default",
+      }}
+    >
+      <div className="rounded-xl border border-[#8B9A7E]/20 bg-gradient-to-br from-[#8B9A7E]/10 via-gray-900/15 to-[#9CA986]/10 p-6 shadow-2xl backdrop-blur-lg">
+        {/* Drag handle header */}
+        <div
+          className="mb-6 flex cursor-grab items-center gap-3 active:cursor-grabbing"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
           <div className="relative">
-            {/* Status dot */}
             <div
-              className={`w-3 h-3 rounded-full ${getStatusColor()} ${isConnected ? "animate-pulse" : ""}`}
+              className={`h-3 w-3 rounded-full ${getStatusColor()} ${isConnected ? "animate-pulse" : ""}`}
             />
-
-            {/* Pulse ring for connected state */}
             {isConnected && (
-              <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-500 animate-ping opacity-75" />
+              <div className="absolute inset-0 h-3 w-3 animate-ping rounded-full bg-[#B5CC9A] opacity-75" />
             )}
           </div>
 
@@ -115,21 +99,18 @@ export function Controls({
           </h2>
 
           {reconnectAttempts > 0 && (
-            <span className="ml-auto text-xs text-gray-400">
+            <span className="ml-auto text-xs text-white/50">
               Retry {reconnectAttempts}
             </span>
           )}
         </div>
 
         {/* Connection controls */}
-        <div className="space-y-3 mb-6">
+        <div className="mb-6 space-y-3">
           <button
             onClick={onConnect}
             disabled={isConnected || isConnecting}
-            className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800
-                     disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50
-                     text-white rounded-lg font-medium transition-all duration-150
-                     focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-black/80"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#8B9A7E]/20 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-inner shadow-[#8B9A7E]/20 transition focus:outline-none data-hover:bg-[#8B9A7E]/30 data-focus:outline data-focus:outline-1 data-focus:outline-[#8B9A7E] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isConnecting ? "Connecting..." : "Connect"}
           </button>
@@ -137,22 +118,18 @@ export function Controls({
           <button
             onClick={onDisconnect}
             disabled={!isConnected && !isConnecting}
-            className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800
-                     disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50
-                     text-white rounded-lg font-medium transition-all duration-150
-                     focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-black/80"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#8B9A7E]/20 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-inner shadow-[#8B9A7E]/20 transition focus:outline-none data-hover:bg-[#8B9A7E]/30 data-focus:outline data-focus:outline-1 data-focus:outline-[#8B9A7E] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Disconnect
           </button>
         </div>
 
-        {/* Metrics display */}
-        <div className="pt-6 border-t border-white/10 space-y-3">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide">
+        {/* Metrics */}
+        <div className="space-y-3 border-t border-white/5 pt-6">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-white/50">
             Performance
           </h3>
 
-          {/* Client FPS */}
           <MetricRow
             label="Client FPS"
             value={metrics.fps}
@@ -160,7 +137,6 @@ export function Controls({
             highlight={isConnected}
           />
 
-          {/* Backend metrics (placeholder for future) */}
           {metrics.inferenceTimeEmaMs !== undefined && (
             <MetricRow
               label="Inference Time"
@@ -170,7 +146,6 @@ export function Controls({
             />
           )}
 
-          {/* Latency (placeholder for future) */}
           {metrics.latencyMs !== undefined && (
             <MetricRow
               label="Latency"
@@ -181,63 +156,55 @@ export function Controls({
           )}
         </div>
 
-        {/* Settings menu (using Headless UI) */}
-        <div className="pt-6 border-t border-white/10 mt-6">
-          <Menu as="div" className="relative">
-            {/* Menu button */}
-            <MenuButton
-              className="w-full px-4 py-2.5 bg-gray-800 hover:bg-gray-700 active:bg-gray-600
-                                   text-white rounded-lg font-medium transition-all duration-150
-                                   focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-black/80"
-            >
+        {/* Settings menu */}
+        <div className="mt-6 border-t border-white/5 pt-6">
+          <Menu>
+            <MenuButton className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#8B9A7E]/20 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-inner shadow-[#8B9A7E]/20 focus:outline-none data-focus:outline data-focus:outline-1 data-focus:outline-[#8B9A7E] data-hover:bg-[#8B9A7E]/30 data-open:bg-[#8B9A7E]/30">
               Settings
+              <svg
+                className="size-4 fill-white/60"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+              </svg>
             </MenuButton>
 
-            {/* Menu items with transition */}
-            <Transition
-              as={Fragment}
-              enter="transition ease-out duration-100"
-              enterFrom="transform opacity-0 scale-95"
-              enterTo="transform opacity-100 scale-100"
-              leave="transition ease-in duration-75"
-              leaveFrom="transform opacity-100 scale-100"
-              leaveTo="transform opacity-0 scale-95"
+            <MenuItems
+              transition
+              anchor="bottom"
+              className="w-52 origin-top rounded-xl border border-[#8B9A7E]/20 bg-[#8B9A7E]/10 p-1 text-sm/6 text-white shadow-xl backdrop-blur-lg transition duration-100 ease-out [--anchor-gap:4px] focus:outline-none data-closed:scale-95 data-closed:opacity-0"
             >
-              <MenuItems
-                className="absolute left-0 bottom-full mb-2 w-full origin-bottom-left
-                                     bg-gray-900/95 backdrop-blur-lg rounded-lg shadow-xl
-                                     ring-1 ring-black ring-opacity-5
-                                     focus:outline-none overflow-hidden"
-              >
-                <div className="p-1">
-                  <MenuItem>
-                    {({ focus }) => (
-                      <button
-                        className={`${
-                          focus ? "bg-gray-800" : ""
-                        } group flex w-full items-center rounded-md px-3 py-2.5 text-sm text-white transition-colors`}
-                        onClick={() => console.log("Quality settings clicked")}
-                      >
-                        Quality Settings
-                      </button>
-                    )}
-                  </MenuItem>
+              <MenuItem>
+                <button className="group flex w-full items-center gap-2 rounded-lg px-3 py-1.5 data-focus:bg-[#8B9A7E]/20">
+                  <svg
+                    className="size-4 fill-white/30"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                  >
+                    <path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z" />
+                    <path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z" />
+                  </svg>
+                  Quality Settings
+                </button>
+              </MenuItem>
 
-                  <MenuItem>
-                    {({ focus }) => (
-                      <button
-                        className={`${
-                          focus ? "bg-gray-800" : ""
-                        } group flex w-full items-center rounded-md px-3 py-2.5 text-sm text-white transition-colors`}
-                        onClick={() => console.log("About clicked")}
-                      >
-                        About
-                      </button>
-                    )}
-                  </MenuItem>
-                </div>
-              </MenuItems>
-            </Transition>
+              <MenuItem>
+                <button className="group flex w-full items-center gap-2 rounded-lg px-3 py-1.5 data-focus:bg-[#8B9A7E]/20">
+                  <svg
+                    className="size-4 fill-white/30"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0Zm-6 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7.293 5.293a1 1 0 1 1 1.414 1.414L8.414 7H9a1 1 0 1 1 0 2H8a1 1 0 0 1-1-1V7a1 1 0 0 1 .293-.707Z"
+                    />
+                  </svg>
+                  About
+                </button>
+              </MenuItem>
+            </MenuItems>
           </Menu>
         </div>
       </div>
@@ -245,9 +212,6 @@ export function Controls({
   );
 }
 
-/**
- * Metric row component for consistent metric display
- */
 interface MetricRowProps {
   label: string;
   value: string | number;
@@ -257,13 +221,13 @@ interface MetricRowProps {
 
 function MetricRow({ label, value, unit, highlight = false }: MetricRowProps) {
   return (
-    <div className="flex justify-between items-baseline text-sm">
-      <span className="text-gray-400">{label}</span>
+    <div className="flex items-baseline justify-between text-sm">
+      <span className="text-white/50">{label}</span>
       <span
-        className={`font-mono font-semibold ${highlight ? "text-green-400" : "text-gray-300"}`}
+        className={`font-semibold tabular-nums ${highlight ? "text-[#9CA986]" : "text-white/70"}`}
       >
         {value}
-        {unit && <span className="text-gray-500 ml-0.5">{unit}</span>}
+        {unit && <span className="ml-0.5 text-white/40">{unit}</span>}
       </span>
     </div>
   );
