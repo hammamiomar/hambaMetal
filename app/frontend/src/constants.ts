@@ -2,7 +2,7 @@
 Constants for App Configs... maybe I name this config
 */
 export const WS_CONFIG = {
-  URL: `ws://localhost:8080/ws/test/`,
+  URL: `ws://localhost:8080/ws/generate/`,
   RECONNECT_DELAY: 2000, // in ms
   MAX_RECONNECT_ATTEMPTS: 5,
 } as const;
